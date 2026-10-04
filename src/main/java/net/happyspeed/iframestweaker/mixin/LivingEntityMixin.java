@@ -1,81 +1,63 @@
 package net.happyspeed.iframestweaker.mixin;
 
-import com.llamalad7.mixinextras.sugar.Local;
-import net.happyspeed.iframestweaker.IFramesTweakerMod;
-import net.happyspeed.iframestweaker.config.ModConfigs;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.EntityType;
-import net.minecraft.entity.LivingEntity;
-import net.minecraft.entity.damage.DamageSource;
 import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
-import net.minecraft.entity.damage.DamageType;
-import net.minecraft.entity.damage.DamageTypes;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.Items;
-import net.minecraft.registry.RegistryKey;
-import net.minecraft.registry.tag.DamageTypeTags;
-import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
-import net.minecraft.world.World;
+import com.llamalad7.mixinextras.sugar.Local;
+import net.happyspeed.iframestweaker.config.ModConfigs;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.tags.DamageTypeTags;
+import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.world.damagesource.DamageTypes;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.level.Level;
 import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.Shadow;
-import org.spongepowered.asm.mixin.Unique;
-import org.spongepowered.asm.mixin.injection.*;
+import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Constant;
+import org.spongepowered.asm.mixin.injection.ModifyConstant;
 
 import java.util.Objects;
 
 @Mixin(value = LivingEntity.class, priority = 1400)
 public abstract class LivingEntityMixin extends Entity {
-	@Shadow public abstract boolean damage(DamageSource source, float amount);
-
-	public LivingEntityMixin(EntityType<?> type, World world) {
-		super(type, world);
+	public LivingEntityMixin(EntityType<?> type, Level level) {
+		super(type, level);
 	}
 
-	@ModifyConstant(method = "damage", constant = @Constant(intValue = 20, ordinal = 0))
+	@ModifyConstant(method = "hurtServer", constant = @Constant(intValue = 20, ordinal = 0))
 	public int changeIFrames(int constant, @Local(ordinal = 0) final DamageSource source, @Local(ordinal = 0) final float amount) {
-		Entity entity2 = source.getAttacker();
+		Entity entity2 = source.getEntity();
 		int invulnerableTime;
-		if (source.isOf(DamageTypes.PLAYER_ATTACK) && entity2 instanceof PlayerEntity player) {
-			int base = (int) player.getAttackCooldownProgressPerTick();
+		if (source.is(DamageTypes.PLAYER_ATTACK) && entity2 instanceof Player player) {
+			int base = (int) player.getCurrentItemAttackStrengthDelay();
 			if (base > 0) {
 				int base_half = Math.round((float) base / 2);
 				invulnerableTime = Math.min(ModConfigs.MAXIFRAMES, Math.max(ModConfigs.MINIFRAMES, (int) (base_half + (Math.round(base * ModConfigs.IFRAMESFACTOR)))));
-
-			}
-			else {
+			} else {
 				invulnerableTime = 10;
 			}
-		}
-		else if (source.isIn(DamageTypeTags.IS_PROJECTILE)) {
+		} else if (source.is(DamageTypeTags.IS_PROJECTILE)) {
 			invulnerableTime = ModConfigs.PROJECTILEIFRAMES;
-		}
-		else if (source.isIn(DamageTypeTags.IS_FALL)) {
+		} else if (source.is(DamageTypeTags.IS_FALL)) {
 			invulnerableTime = ModConfigs.FALLIFRAMES;
-		}
-		else if (source.isIn(DamageTypeTags.BYPASSES_COOLDOWN)) {
+		} else if (source.is(DamageTypeTags.BYPASSES_COOLDOWN)) {
 			invulnerableTime = 0;
-		}
-		else if (source.isIn(DamageTypeTags.IS_FIRE)) {
+		} else if (source.is(DamageTypeTags.IS_FIRE)) {
 			invulnerableTime = ModConfigs.FIREIFRAMES;
-		}
-		else if (source.isOf(DamageTypes.INDIRECT_MAGIC)) {
+		} else if (source.is(DamageTypes.INDIRECT_MAGIC)) {
 			invulnerableTime = ModConfigs.INDIRECTMAGICIFRAMES;
-		}
-		else if (source.isOf(DamageTypes.MAGIC)) {
+		} else if (source.is(DamageTypes.MAGIC)) {
 			invulnerableTime = ModConfigs.DIRECTMAGICIFRAMES;
-		}
-		else if (Objects.equals(source.getType().msgId(), "slashdamage")) {
+		} else if (Objects.equals(source.type().msgId(), "slashdamage")) {
 			invulnerableTime = 5;
-		}
-		else {
+		} else {
 			invulnerableTime = ModConfigs.MISCIFRAMES;
 		}
 		return invulnerableTime;
 	}
 
-	@ModifyExpressionValue(method = "damage", at = @At(value = "CONSTANT", args = "floatValue=10.0F", ordinal = 0))
+	@ModifyExpressionValue(method = "hurtServer", at = @At(value = "CONSTANT", args = "floatValue=10.0F", ordinal = 0))
 	public float changeIFrames(float constant) {
 		return constant - 10;
 	}
